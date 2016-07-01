@@ -2,7 +2,7 @@
 
 Package.describe({
   name: 'fuww:mysql-sync',
-  version: '0.0.1',
+  version: '0.0.2',
   summary: 'Synchronization of MySQL tables to mongodb collections',
   git: 'https://github.com/fuww/meteor-mysql-sync.git',
   documentation: 'README.md'

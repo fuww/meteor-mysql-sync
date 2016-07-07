@@ -1,5 +1,7 @@
 # MySQLSync
 
+Synchronization of MySQL tables to mongodb collections
+
 ## Usage
 
 ```js

@@ -12,32 +12,6 @@ const STRATEGIES = {
   POLLING: 'polling',
   OPLOG_TAILING: 'oplog_tailing'
 };
-const DEFAULT_OPTIONS = {
-  updatedAtColumn: 'updatedAt',
-  transform: row => ({
-    selector: {
-      id: row.id
-    },
-    modifiers: {
-      $set: row
-    }
-  }),
-  table: 'table',
-  updatedAtUpdateDelay: 10000,
-  pollInterval: 5000,
-  strategy: STRATEGIES.POLLING
-};
-
-const SyncStatus = new Meteor.Collection('mySQLSync.syncStatus');
-const MySQLSync = {};
-
-MySQLSync.connections = [];
-MySQLSync.liveConnections = [];
-MySQLSync.SyncStatus = SyncStatus;
-
-function getStatusKey(table, updatedAtColumn) {
-  return `${table}.${updatedAtColumn}`;
-}
 
 function getQuery(table, updatedAtColumn, updatedAt) {
   return function query(esc, escId) {
@@ -51,6 +25,34 @@ function getQuery(table, updatedAtColumn, updatedAt) {
 
     return sqlQuery;
   };
+}
+
+const DEFAULT_OPTIONS = {
+  updatedAtColumn: 'updatedAt',
+  transform: row => ({
+    selector: {
+      id: row.id
+    },
+    modifiers: {
+      $set: row
+    }
+  }),
+  table: 'table',
+  updatedAtUpdateDelay: 10000,
+  pollInterval: 5000,
+  strategy: STRATEGIES.POLLING,
+  getQuery
+};
+
+const SyncStatus = new Meteor.Collection('mySQLSync.syncStatus');
+const MySQLSync = {};
+
+MySQLSync.connections = [];
+MySQLSync.liveConnections = [];
+MySQLSync.SyncStatus = SyncStatus;
+
+function getStatusKey(table, updatedAtColumn) {
+  return `${table}.${updatedAtColumn}`;
 }
 
 function select(connection, query, onRow) {
@@ -93,7 +95,7 @@ function poll(settings, options, onRow) {
   Log.info(`[MySQLSync] Poll ${table} from ${updatedAt || 'the beginning'}`);
   do {
     const query = LiveMySQL.prototype._escapeQueryFun.bind({db: connection})(
-      getQuery(table, updatedAtColumn, updatedAt)
+      options.getQuery(table, updatedAtColumn, updatedAt)
     );
     select(connection, query, onRow);
     if (options.strategy === STRATEGIES.POLLING) {
@@ -123,7 +125,8 @@ function tail(settings, options, onRow) {
 
   Log.info(`[MySQLSync] Syncing ${table} from ${updatedAt || 'the beginning'}`);
 
-  liveConnection.select(getQuery(table, updatedAtColumn, updatedAt), [{table}])
+  liveConnection
+    .select(options.getQuery(table, updatedAtColumn, updatedAt), [{table}])
     .on('update', Meteor.bindEnvironment((diff, rows) => _.each(rows, onRow)));
 }
 

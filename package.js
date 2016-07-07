@@ -9,7 +9,7 @@ Package.describe({
 });
 
 Npm.depends({
-  'mysql-live-select': '1.0.3'
+  'mysql-live-select': '1.0.6'
 });
 
 Package.onUse(function(api) {

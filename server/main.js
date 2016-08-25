@@ -15,7 +15,7 @@ const STRATEGIES = {
 
 function getQuery(table, updatedAtColumn, updatedAt) {
   return function query(esc, escId) {
-    let sqlQuery = `SELECT * FROM ${escId(table)}`;
+    let sqlQuery = `SELECT *, NOW() AS _mysql_sync_now FROM ${escId(table)}`;
     const escapedUpdatedAtColumn = escId(updatedAtColumn);
 
     if (updatedAt) {
@@ -139,15 +139,6 @@ MySQLSync._getUpdatedAt = function(table, updatedAtColumn) {
 };
 
 MySQLSync._updateUpdatedAt = function(table, updatedAtColumn, updatedAt) {
-  if (moment(updatedAt).isAfter()) {
-    Log.warn(
-      `[MySQLSync] Found updatedAt (${table}.${updatedAtColumn}) \
-      in the future: ${updatedAt}`
-    );
-
-    return;
-  }
-
   try {
     SyncStatus.upsert({
       _id: getStatusKey(table, updatedAtColumn),
@@ -171,7 +162,8 @@ MySQLSync.sync = function(settings, collection, providedOptions) {
     MySQLSync._updateUpdatedAt(table, updatedAtColumn, updatedAt);
   }), options.updatedAtUpdateDelay);
   const onRow = function(row) {
-    const parameters = options.transform(row);
+    const now = row._mysql_sync_now;
+    const parameters = options.transform(_.omit(row, '_mysql_sync_now'));
 
     try {
       collection.upsert(
@@ -182,17 +174,33 @@ MySQLSync.sync = function(settings, collection, providedOptions) {
     } catch (error) {
       Log.warn(
         `[MySQLSync] Failed to upsert document to collection \
-        ${collection._name} ${JSON.stringify(parameters)}`
+${collection._name} ${JSON.stringify(parameters)}`
       );
       throw error;
     }
 
     const updatedAtMoment = moment(row[updatedAtColumn] || null);
-    if (updatedAtMoment.isValid()) {
-      updatedAt = updatedAtMoment.toDate();
+    if (!updatedAtMoment.isValid()) {
+      Log.warn(
+        `[MySQLSync] Found invalid updatedAt (${table}.${updatedAtColumn})`
+      );
 
-      updateUpdatedAt();
+      return;
     }
+
+    if (now && updatedAtMoment.isAfter(now)) {
+      Log.warn(
+        `[MySQLSync] Found updatedAt (${table}.${updatedAtColumn}) \
+in the future: ${updatedAtMoment.format()} > \
+${moment(now).format()}`
+      );
+
+      return;
+    }
+
+    updatedAt = updatedAtMoment.toDate();
+
+    updateUpdatedAt();
   };
 
   Future.task(() => {

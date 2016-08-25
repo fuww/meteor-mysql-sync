@@ -53,7 +53,10 @@ MySQLSync.sync({
       // make sure you escape all the values (esc) and identifiers (escId)
       // use always the table, updatedAtColumn values set in the options
       // updatedAt contains the latest modification date
-      let sqlQuery = `SELECT * FROM ${escId(table)}`;
+      // use SELECT fields..., NOW() AS _mysql_sync_now
+      // so it can detect if the timestamps are in the future in the database
+      // according to the database time
+      let sqlQuery = `SELECT *, NOW() AS _mysql_sync_now FROM ${escId(table)}`;
       const escapedUpdatedAtColumn = escId(updatedAtColumn);
 
       // make sure you select only the recently modified items

@@ -29,6 +29,7 @@ function getQuery(table, updatedAtColumn, updatedAt) {
 
 const DEFAULT_OPTIONS = {
   updatedAtColumn: 'updatedAt',
+  dryRun: false,
   transform: row => ({
     selector: {
       id: row.id
@@ -157,6 +158,7 @@ MySQLSync.sync = function(settings, collection, providedOptions) {
   const options = _.extend({}, DEFAULT_OPTIONS, providedOptions);
   const table = options.table;
   const updatedAtColumn = options.updatedAtColumn;
+  const dryRun = options.dryRun;
   let updatedAt;
   const updateUpdatedAt = _.throttle(Meteor.bindEnvironment(() => {
     MySQLSync._updateUpdatedAt(table, updatedAtColumn, updatedAt);
@@ -166,11 +168,13 @@ MySQLSync.sync = function(settings, collection, providedOptions) {
     const parameters = options.transform(_.omit(row, '_mysql_sync_now'));
 
     try {
-      collection.upsert(
-        parameters.selector,
-        parameters.modifiers,
-        parameters.options
-      );
+      if (!dryRun) {
+        collection.upsert(
+          parameters.selector,
+          parameters.modifiers,
+          parameters.options
+        );
+      }
     } catch (error) {
       Log.warn(
         `[MySQLSync] Failed to upsert document to collection \

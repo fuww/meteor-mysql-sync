@@ -41,6 +41,7 @@ MySQLSync.sync({
       }
     };
   },
+  dryRun: false, // when set to true, skips writing to the collection
   table: 'cars', // MySQL table
   updatedAtUpdateDelay: 10000, // saving of updated at to mongodb throttled to n ms
   pollInterval: 5000, // how often the table should be polled in ms
